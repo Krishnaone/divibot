@@ -1,0 +1,38 @@
+body {
+    background: linear-gradient(to right, #ffe0f0, #e0f7fa);
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    text-align: center;
+}
+
+.talk {
+    background-color: #ff80ab;
+    color: white;
+    font-size: 1.5rem;
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 2rem;
+    cursor: pointer;
+    margin-top: 2rem;
+    transition: background-color 0.3s;
+}
+
+.talk:hover {
+    background-color: #ec407a;
+}
+
+.content {
+    font-size: 1.2rem;
+    margin-top: 1rem;
+    color: #333;
+    padding: 0 1rem;
+}
+
+h1 {
+    font-size: 2.2rem;
+    color: #d81b60;
+}
