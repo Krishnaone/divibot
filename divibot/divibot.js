@@ -1,6 +1,102 @@
 const btn = document.querySelector('.talk');
 const content = document.querySelector('.content');
 
+// Spotify API configuration
+const SPOTIFY_CLIENT_ID = '80e0e3f30ac446d4a20ac2b186fdd044';
+const SPOTIFY_REDIRECT_URI = 'https://krishnaone.github.io/divibot';
+let spotifyAccessToken = null;
+
+// Spotify authentication
+function authenticateSpotify() {
+    const scopes = ['user-read-private', 'user-read-email', 'user-modify-playback-state', 'user-read-playback-state'];
+    const authUrl = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}&scope=${encodeURIComponent(scopes.join(' '))}`;
+    
+    window.location.href = authUrl;
+}
+
+// Get access token from URL fragment
+function getSpotifyToken() {
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const token = params.get('access_token');
+    
+    if (token) {
+        spotifyAccessToken = token;
+        localStorage.setItem('spotify_token', token);
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return token;
+    }
+    
+    // Check if token exists in localStorage
+    const savedToken = localStorage.getItem('spotify_token');
+    if (savedToken) {
+        spotifyAccessToken = savedToken;
+        return savedToken;
+    }
+    
+    return null;
+}
+
+// Search for a song on Spotify
+async function searchSpotifySong(songName) {
+    if (!spotifyAccessToken) {
+        speak("Spotify se connect nahi hai, pehle login karo meri jaan 🎵");
+        authenticateSpotify();
+        return null;
+    }
+    
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(songName)}&type=track&limit=1`, {
+            headers: {
+                'Authorization': `Bearer ${spotifyAccessToken}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Spotify API request failed');
+        }
+        
+        const data = await response.json();
+        return data.tracks.items[0];
+    } catch (error) {
+        console.error('Error searching Spotify:', error);
+        speak("Spotify mein dhundhne mein problem hui, try again karo 💔");
+        return null;
+    }
+}
+
+// Play song on Spotify
+async function playSpotifySong(songUri) {
+    if (!spotifyAccessToken) {
+        speak("Spotify se connect nahi hai, pehle login karo meri jaan 🎵");
+        authenticateSpotify();
+        return;
+    }
+    
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/player/play', {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${spotifyAccessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                uris: [songUri]
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to play song');
+        }
+        
+        speak("Song start ho gaya, enjoy karo meri jaan 🎶");
+    } catch (error) {
+        console.error('Error playing song:', error);
+        speak("Song play karne mein problem hui, check karo ki Spotify open hai 💔");
+    }
+}
+
 function speak(text) {
     const text_speak = new SpeechSynthesisUtterance(text);
     text_speak.rate = 1;
@@ -25,6 +121,9 @@ function wishDivijaa() {
 window.addEventListener('load', () => {
     speak("Initializing Divibot X, loading pyaar protocol...");
     wishDivijaa();
+    
+    // Check for Spotify token on page load
+    getSpotifyToken();
 });
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -77,8 +176,33 @@ function takeCommand(message) {
         speak("Opening Calculator... ab batao kitna pyaar karti ho mujhe 😛");
         window.open('Calculator:///', "_blank");
     } 
+    // Spotify music commands
+    else if (message.includes('play') && (message.includes('song') || message.includes('music') || message.includes('spotify'))) {
+        const songName = message.replace(/play|song|music|spotify|on|from/gi, '').trim();
+        if (songName) {
+            speak(`Searching for "${songName}" on Spotify, meri jaan 🎵`);
+            searchAndPlaySong(songName);
+        } else {
+            speak("Kya song play karna chahti ho? Bolo na meri jaan 🎶");
+        }
+    }
+    else if (message.includes('spotify') && message.includes('connect')) {
+        speak("Spotify se connect kar raha hoon, meri jaan 🎵");
+        authenticateSpotify();
+    }
     else {
         speak(`Tumne bola "${message}", chalo dekhte hain internet kya kehta hai 🤓`);
         window.open(`https://www.google.com/search?q=${message.replace(" ", "+")}`, "_blank");
+    }
+}
+
+// Function to search and play song
+async function searchAndPlaySong(songName) {
+    const song = await searchSpotifySong(songName);
+    if (song) {
+        speak(`Playing "${song.name}" by ${song.artists[0].name} on Spotify 🎶`);
+        await playSpotifySong(song.uri);
+    } else {
+        speak("Song nahi mila Spotify mein, koi aur try karo meri jaan 💔");
     }
 }
